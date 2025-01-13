@@ -175,12 +175,13 @@ func (sm *SharedManager) attemptReadPackFileLocalIndex(ctx context.Context, pack
 		return errors.Errorf("unable to find valid postamble in file %v", packFile)
 	}
 
-	if uint32(offset) > postamble.localIndexOffset {
+	if uint32(offset) > postamble.localIndexOffset { //nolint:gosec
 		return errors.Errorf("not enough data read during optimized attempt %v", packFile)
 	}
 
-	postamble.localIndexOffset -= uint32(offset)
+	postamble.localIndexOffset -= uint32(offset) //nolint:gosec
 
+	//nolint:gosec
 	if uint64(postamble.localIndexOffset+postamble.localIndexLength) > uint64(payload.Length()) {
 		// invalid offset/length
 		return errors.Errorf("unable to find valid local index in file %v - invalid offset/length", packFile)
@@ -201,9 +202,9 @@ func (sm *SharedManager) attemptReadPackFileLocalIndex(ctx context.Context, pack
 
 // +checklocks:sm.indexesLock
 func (sm *SharedManager) loadPackIndexesLocked(ctx context.Context) error {
-	nextSleepTime := 100 * time.Millisecond //nolint:gomnd
+	nextSleepTime := 100 * time.Millisecond //nolint:mnd
 
-	for i := 0; i < indexLoadAttempts; i++ {
+	for i := range indexLoadAttempts {
 		ibm, err0 := sm.indexBlobManager(ctx)
 		if err0 != nil {
 			return err0
@@ -287,25 +288,25 @@ func (sm *SharedManager) decryptContentAndVerify(payload gather.Bytes, bi Info, 
 
 	var hashBuf [hashing.MaxHashSize]byte
 
-	iv := getPackedContentIV(hashBuf[:0], bi.GetContentID())
+	iv := getPackedContentIV(hashBuf[:0], bi.ContentID)
 
 	// reserved for future use
-	if k := bi.GetEncryptionKeyID(); k != 0 {
+	if k := bi.EncryptionKeyID; k != 0 {
 		return errors.Errorf("unsupported encryption key ID: %v", k)
 	}
 
-	h := bi.GetCompressionHeaderID()
+	h := bi.CompressionHeaderID
 	if h == 0 {
 		return errors.Wrapf(
 			sm.decryptAndVerify(payload, iv, output),
-			"invalid checksum at %v offset %v length %v/%v", bi.GetPackBlobID(), bi.GetPackOffset(), bi.GetPackedLength(), payload.Length())
+			"invalid checksum at %v offset %v length %v/%v", bi.PackBlobID, bi.PackOffset, bi.PackedLength, payload.Length())
 	}
 
 	var tmp gather.WriteBuffer
 	defer tmp.Close()
 
 	if err := sm.decryptAndVerify(payload, iv, &tmp); err != nil {
-		return errors.Wrapf(err, "invalid checksum at %v offset %v length %v/%v", bi.GetPackBlobID(), bi.GetPackOffset(), bi.GetPackedLength(), payload.Length())
+		return errors.Wrapf(err, "invalid checksum at %v offset %v length %v/%v", bi.PackBlobID, bi.PackOffset, bi.PackedLength, payload.Length())
 	}
 
 	c := compression.ByHeaderID[h]

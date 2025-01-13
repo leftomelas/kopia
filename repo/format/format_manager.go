@@ -138,26 +138,21 @@ func (m *Manager) refresh(ctx context.Context) error {
 
 	b, err = addFormatBlobChecksumAndLength(b)
 	if err != nil {
-		return errors.Errorf("unable to add checksum")
+		return errors.New("unable to add checksum")
 	}
 
-	var formatEncryptionKey []byte
-
-	// try decrypting using old key, if present to avoid deriving it, which is expensive
-	repoConfig, err := j.decryptRepositoryConfig(m.formatEncryptionKey)
-	if err == nil {
-		// still valid, no need to derive
-		formatEncryptionKey = m.formatEncryptionKey
-	} else {
+	// use old key, if present to avoid deriving it, which is expensive
+	formatEncryptionKey := m.formatEncryptionKey
+	if len(m.formatEncryptionKey) == 0 {
 		formatEncryptionKey, err = j.DeriveFormatEncryptionKeyFromPassword(m.password)
 		if err != nil {
 			return errors.Wrap(err, "derive format encryption key")
 		}
+	}
 
-		repoConfig, err = j.decryptRepositoryConfig(formatEncryptionKey)
-		if err != nil {
-			return ErrInvalidPassword
-		}
+	repoConfig, err := j.decryptRepositoryConfig(formatEncryptionKey)
+	if err != nil {
+		return ErrInvalidPassword
 	}
 
 	var blobCfg BlobStorageConfiguration
@@ -314,7 +309,7 @@ func (m *Manager) LoadedTime() time.Time {
 // +checklocks:m.mu
 func (m *Manager) updateRepoConfigLocked(ctx context.Context) error {
 	if err := m.j.EncryptRepositoryConfig(m.repoConfig, m.formatEncryptionKey); err != nil {
-		return errors.Errorf("unable to encrypt format bytes")
+		return errors.New("unable to encrypt format bytes")
 	}
 
 	if err := m.j.WriteKopiaRepositoryBlob(ctx, m.blobs, m.blobCfgBlob); err != nil {
@@ -425,7 +420,7 @@ func NewManagerWithCache(
 }
 
 // ErrAlreadyInitialized indicates that repository has already been initialized.
-var ErrAlreadyInitialized = errors.Errorf("repository already initialized")
+var ErrAlreadyInitialized = errors.New("repository already initialized")
 
 // Initialize initializes the format blob in a given storage.
 func Initialize(ctx context.Context, st blob.Storage, formatBlob *KopiaRepositoryJSON, repoConfig *RepositoryConfig, blobcfg BlobStorageConfiguration, password string) error {
@@ -444,7 +439,7 @@ func Initialize(ctx context.Context, st blob.Storage, formatBlob *KopiaRepositor
 
 	err = st.GetBlob(ctx, KopiaBlobCfgBlobID, 0, -1, &tmp)
 	if err == nil {
-		return errors.Errorf("possible corruption: blobcfg blob exists, but format blob is not found")
+		return errors.New("possible corruption: blobcfg blob exists, but format blob is not found")
 	}
 
 	if !errors.Is(err, blob.ErrBlobNotFound) {
@@ -455,6 +450,8 @@ func Initialize(ctx context.Context, st blob.Storage, formatBlob *KopiaRepositor
 		formatBlob.EncryptionAlgorithm = DefaultFormatEncryption
 	}
 
+	// In legacy versions, the KeyDerivationAlgorithm may not be present in the
+	// KopiaRepositoryJson. In those cases default to using Scrypt.
 	if formatBlob.KeyDerivationAlgorithm == "" {
 		formatBlob.KeyDerivationAlgorithm = DefaultKeyDerivationAlgorithm
 	}

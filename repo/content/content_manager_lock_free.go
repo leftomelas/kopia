@@ -30,16 +30,15 @@ func (sm *SharedManager) maybeCompressAndEncryptDataForPacking(data gather.Bytes
 	iv := getPackedContentIV(hashOutput[:0], contentID)
 
 	// If the content is prefixed (which represents Kopia's own metadata as opposed to user data),
-	// and we're on V2 format or greater, enable internal compression even when not requested.
-	if contentID.HasPrefix() && comp == NoCompression && mp.IndexVersion >= index.Version2 {
-		// 'zstd-fastest' has a good mix of being fast, low memory usage and high compression for JSON.
-		comp = compression.HeaderZstdFastest
+	// and we're on < V2 format, disable compression even when its requested.
+	if contentID.HasPrefix() && mp.IndexVersion < index.Version2 {
+		comp = NoCompression
 	}
 
 	//nolint:nestif
 	if comp != NoCompression {
 		if mp.IndexVersion < index.Version2 {
-			return NoCompression, errors.Errorf("compression is not enabled for this repository")
+			return NoCompression, errors.New("compression is not enabled for this repository")
 		}
 
 		var tmp gather.WriteBuffer
@@ -101,21 +100,21 @@ func writeRandomBytesToBuffer(b *gather.WriteBuffer, count int) error {
 func contentCacheKeyForInfo(bi Info) string {
 	// append format-specific information
 	// see https://github.com/kopia/kopia/issues/1843 for an explanation
-	return fmt.Sprintf("%v.%x.%x.%x", bi.GetContentID(), bi.GetCompressionHeaderID(), bi.GetFormatVersion(), bi.GetEncryptionKeyID())
+	return fmt.Sprintf("%v.%x.%x.%x", bi.ContentID, bi.CompressionHeaderID, bi.FormatVersion, bi.EncryptionKeyID)
 }
 
 func (sm *SharedManager) getContentDataReadLocked(ctx context.Context, pp *pendingPackInfo, bi Info, output *gather.WriteBuffer) error {
 	var payload gather.WriteBuffer
 	defer payload.Close()
 
-	if pp != nil && pp.packBlobID == bi.GetPackBlobID() {
+	if pp != nil && pp.packBlobID == bi.PackBlobID {
 		// we need to use a lock here in case somebody else writes to the pack at the same time.
-		if err := pp.currentPackData.AppendSectionTo(&payload, int(bi.GetPackOffset()), int(bi.GetPackedLength())); err != nil {
+		if err := pp.currentPackData.AppendSectionTo(&payload, int(bi.PackOffset), int(bi.PackedLength)); err != nil {
 			// should never happen
 			return errors.Wrap(err, "error appending pending content data to buffer")
 		}
-	} else if err := sm.getCacheForContentID(bi.GetContentID()).GetContent(ctx, contentCacheKeyForInfo(bi), bi.GetPackBlobID(), int64(bi.GetPackOffset()), int64(bi.GetPackedLength()), &payload); err != nil {
-		return errors.Wrap(err, "error getting cached content")
+	} else if err := sm.getCacheForContentID(bi.ContentID).GetContent(ctx, contentCacheKeyForInfo(bi), bi.PackBlobID, int64(bi.PackOffset), int64(bi.PackedLength), &payload); err != nil {
+		return errors.Wrapf(err, "error getting cached content from blob %q", bi.PackBlobID)
 	}
 
 	return sm.decryptContentAndVerify(payload.Bytes(), bi, output)
@@ -129,7 +128,7 @@ func (sm *SharedManager) preparePackDataContent(mp format.MutableParameters, pp 
 	defer sb.Release()
 
 	for _, info := range pp.currentPackItems {
-		if info.GetPackBlobID() == pp.packBlobID {
+		if info.PackBlobID == pp.packBlobID {
 			haveContent = true
 		}
 
@@ -137,14 +136,14 @@ func (sm *SharedManager) preparePackDataContent(mp format.MutableParameters, pp 
 		sb.AppendString("add-to-pack ")
 		sb.AppendString(string(pp.packBlobID))
 		sb.AppendString(" ")
-		info.GetContentID().AppendToLogBuffer(sb)
+		info.ContentID.AppendToLogBuffer(sb)
 		sb.AppendString(" p:")
-		sb.AppendString(string(info.GetPackBlobID()))
+		sb.AppendString(string(info.PackBlobID))
 		sb.AppendString(" ")
-		sb.AppendUint32(info.GetPackedLength())
+		sb.AppendUint32(info.PackedLength)
 		sb.AppendString(" d:")
-		sb.AppendBoolean(info.GetDeleted())
-		sm.log.Debugf(sb.String())
+		sb.AppendBoolean(info.Deleted)
+		sm.log.Debug(sb.String())
 
 		packFileIndex.Add(info)
 	}

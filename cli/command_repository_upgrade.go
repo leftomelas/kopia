@@ -93,9 +93,9 @@ func (c *commandRepositoryUpgrade) setup(svc advancedAppServices, parent command
 
 // assign store the info struct in a map that can be used to compare indexes.
 func assign(iif content.Info, i int, m map[content.ID][2]content.Info) {
-	v := m[iif.GetContentID()]
+	v := m[iif.ContentID]
 	v[i] = iif
-	m[iif.GetContentID()] = v
+	m[iif.ContentID] = v
 }
 
 // loadIndexBlobs load index blobs into indexEntries map.  indexEntries map will allow comparison betweel two indexes (index at which == 0 and index at which == 1).
@@ -137,7 +137,7 @@ func (c *commandRepositoryUpgrade) validateAction(ctx context.Context, rep repo.
 	}
 
 	if len(indexBlobInfos0) == 0 && len(indexBlobInfos1) > 0 {
-		log(ctx).Infof("old index is empty (possibly due to upgrade), nothing to compare against")
+		log(ctx).Info("old index is empty (possibly due to upgrade), nothing to compare against")
 		return nil
 	}
 
@@ -172,16 +172,16 @@ func (c *commandRepositoryUpgrade) validateAction(ctx context.Context, rep repo.
 
 		// one of iep0 or iep1 are nil .. find out which one and add an appropriate message.
 		if iep0 != zeroInfo {
-			msgs = append(msgs, fmt.Sprintf("lop-sided index entries for contentID %q at blob %q", contentID, iep0.GetPackBlobID()))
+			msgs = append(msgs, fmt.Sprintf("lop-sided index entries for contentID %q at blob %q", contentID, iep0.PackBlobID))
 			continue
 		}
 
-		msgs = append(msgs, fmt.Sprintf("lop-sided index entries for contentID %q at blob %q", contentID, iep1.GetPackBlobID()))
+		msgs = append(msgs, fmt.Sprintf("lop-sided index entries for contentID %q at blob %q", contentID, iep1.PackBlobID))
 	}
 
 	// no msgs means the check passed without finding anything wrong
 	if len(msgs) == 0 {
-		log(ctx).Infof("index validation succeeded")
+		log(ctx).Info("index validation succeeded")
 		return nil
 	}
 
@@ -201,24 +201,24 @@ func CheckIndexInfo(i0, i1 content.Info) []string {
 	var q []string
 
 	switch {
-	case i0.GetFormatVersion() != i1.GetFormatVersion():
-		q = append(q, fmt.Sprintf("mismatched FormatVersions: %v %v", i0.GetFormatVersion(), i1.GetFormatVersion()))
-	case i0.GetOriginalLength() != i1.GetOriginalLength():
-		q = append(q, fmt.Sprintf("mismatched OriginalLengths: %v %v", i0.GetOriginalLength(), i1.GetOriginalLength()))
-	case i0.GetPackBlobID() != i1.GetPackBlobID():
-		q = append(q, fmt.Sprintf("mismatched PackBlobIDs: %v %v", i0.GetPackBlobID(), i1.GetPackBlobID()))
-	case i0.GetPackedLength() != i1.GetPackedLength():
-		q = append(q, fmt.Sprintf("mismatched PackedLengths: %v %v", i0.GetPackedLength(), i1.GetPackedLength()))
-	case i0.GetPackOffset() != i1.GetPackOffset():
-		q = append(q, fmt.Sprintf("mismatched PackOffsets: %v %v", i0.GetPackOffset(), i1.GetPackOffset()))
-	case i0.GetEncryptionKeyID() != i1.GetEncryptionKeyID():
-		q = append(q, fmt.Sprintf("mismatched EncryptionKeyIDs: %v %v", i0.GetEncryptionKeyID(), i1.GetEncryptionKeyID()))
-	case i0.GetCompressionHeaderID() != i1.GetCompressionHeaderID():
-		q = append(q, fmt.Sprintf("mismatched GetCompressionHeaderID: %v %v", i0.GetCompressionHeaderID(), i1.GetCompressionHeaderID()))
-	case i0.GetDeleted() != i1.GetDeleted():
-		q = append(q, fmt.Sprintf("mismatched Deleted flags: %v %v", i0.GetDeleted(), i1.GetDeleted()))
-	case i0.GetTimestampSeconds() != i1.GetTimestampSeconds():
-		q = append(q, fmt.Sprintf("mismatched TimestampSeconds: %v %v", i0.GetTimestampSeconds(), i1.GetTimestampSeconds()))
+	case i0.FormatVersion != i1.FormatVersion:
+		q = append(q, fmt.Sprintf("mismatched FormatVersions: %v %v", i0.FormatVersion, i1.FormatVersion))
+	case i0.OriginalLength != i1.OriginalLength:
+		q = append(q, fmt.Sprintf("mismatched OriginalLengths: %v %v", i0.OriginalLength, i1.OriginalLength))
+	case i0.PackBlobID != i1.PackBlobID:
+		q = append(q, fmt.Sprintf("mismatched PackBlobIDs: %v %v", i0.PackBlobID, i1.PackBlobID))
+	case i0.PackedLength != i1.PackedLength:
+		q = append(q, fmt.Sprintf("mismatched PackedLengths: %v %v", i0.PackedLength, i1.PackedLength))
+	case i0.PackOffset != i1.PackOffset:
+		q = append(q, fmt.Sprintf("mismatched PackOffsets: %v %v", i0.PackOffset, i1.PackOffset))
+	case i0.EncryptionKeyID != i1.EncryptionKeyID:
+		q = append(q, fmt.Sprintf("mismatched EncryptionKeyIDs: %v %v", i0.EncryptionKeyID, i1.EncryptionKeyID))
+	case i0.CompressionHeaderID != i1.CompressionHeaderID:
+		q = append(q, fmt.Sprintf("mismatched GetCompressionHeaderID: %v %v", i0.CompressionHeaderID, i1.CompressionHeaderID))
+	case i0.Deleted != i1.Deleted:
+		q = append(q, fmt.Sprintf("mismatched Deleted flags: %v %v", i0.Deleted, i1.Deleted))
+	case i0.TimestampSeconds != i1.TimestampSeconds:
+		q = append(q, fmt.Sprintf("mismatched TimestampSeconds: %v %v", i0.TimestampSeconds, i1.TimestampSeconds))
 	}
 
 	if len(q) == 0 {
@@ -226,7 +226,7 @@ func CheckIndexInfo(i0, i1 content.Info) []string {
 	}
 
 	for i := range q {
-		q[i] = fmt.Sprintf("index blobs do not match: %q, %q: %s", i0.GetPackBlobID(), i1.GetPackBlobID(), q[i])
+		q[i] = fmt.Sprintf("index blobs do not match: %q, %q: %s", i0.PackBlobID, i1.PackBlobID, q[i])
 	}
 
 	return q
@@ -241,7 +241,7 @@ func (c *commandRepositoryUpgrade) forceRollbackAction(ctx context.Context, rep 
 		return errors.Wrap(err, "failed to rollback the upgrade")
 	}
 
-	log(ctx).Infof("Repository upgrade lock has been revoked.")
+	log(ctx).Info("Repository upgrade lock has been revoked.")
 
 	return nil
 }
@@ -340,7 +340,7 @@ func (c *commandRepositoryUpgrade) setLockIntent(ctx context.Context, rep repo.D
 		return nil
 	}
 
-	log(ctx).Infof("Repository upgrade lock intent has been placed.")
+	log(ctx).Info("Repository upgrade lock intent has been placed.")
 
 	// skip all other phases after this step
 	if c.lockOnly {
@@ -362,7 +362,7 @@ func (c *commandRepositoryUpgrade) drainOrCommit(ctx context.Context, rep repo.D
 	}
 
 	if mp.EpochParameters.Enabled {
-		log(ctx).Infof("Repository indices have already been migrated to the epoch format, no need to drain other clients")
+		log(ctx).Info("Repository indices have already been migrated to the epoch format, no need to drain other clients")
 
 		l, err := rep.FormatManager().GetUpgradeLockIntent(ctx)
 		if err != nil {
@@ -374,7 +374,7 @@ func (c *commandRepositoryUpgrade) drainOrCommit(ctx context.Context, rep repo.D
 			return nil
 		}
 
-		log(ctx).Infof("Continuing to drain since advance notice has been set")
+		log(ctx).Info("Continuing to drain since advance notice has been set")
 	}
 
 	if err := c.drainAllClients(ctx, rep); err != nil {
@@ -382,7 +382,7 @@ func (c *commandRepositoryUpgrade) drainOrCommit(ctx context.Context, rep repo.D
 	}
 	// we need to reopen the repository after this point
 
-	log(ctx).Infof("Successfully drained all repository clients, the lock has been fully-established now.")
+	log(ctx).Info("Successfully drained all repository clients, the lock has been fully-established now.")
 
 	return nil
 }
@@ -426,7 +426,7 @@ func (c *commandRepositoryUpgrade) drainAllClients(ctx context.Context, rep repo
 
 		// TODO: this can get stuck
 		if !c.sleepWithContext(ctx, l.StatusPollInterval) {
-			return errors.Errorf("upgrade drain interrupted")
+			return errors.New("upgrade drain interrupted")
 		}
 	}
 
@@ -455,7 +455,7 @@ func (c *commandRepositoryUpgrade) upgrade(ctx context.Context, rep repo.DirectR
 	mp.EpochParameters = epoch.DefaultParameters()
 	mp.IndexVersion = 2
 
-	log(ctx).Infof("migrating current indices to epoch format")
+	log(ctx).Info("migrating current indices to epoch format")
 
 	if uerr := rep.ContentManager().PrepareUpgradeToIndexBlobManagerV1(ctx); uerr != nil {
 		return errors.Wrap(uerr, "error upgrading indices")
@@ -473,7 +473,7 @@ func (c *commandRepositoryUpgrade) upgrade(ctx context.Context, rep repo.DirectR
 
 	// we need to reopen the repository after this point
 
-	log(ctx).Infof("Repository indices have been upgraded.")
+	log(ctx).Info("Repository indices have been upgraded.")
 
 	return nil
 }
@@ -485,7 +485,7 @@ func (c *commandRepositoryUpgrade) upgrade(ctx context.Context, rep repo.DirectR
 // after this phase.
 func (c *commandRepositoryUpgrade) commitUpgrade(ctx context.Context, rep repo.DirectRepositoryWriter) error {
 	if c.commitMode == commitModeNeverCommit {
-		log(ctx).Infof("Commit mode is set to 'never'.  Skipping commit.")
+		log(ctx).Info("Commit mode is set to 'never'.  Skipping commit.")
 		return nil
 	}
 
@@ -494,7 +494,7 @@ func (c *commandRepositoryUpgrade) commitUpgrade(ctx context.Context, rep repo.D
 	}
 	// we need to reopen the repository after this point
 
-	log(ctx).Infof("Repository has been successfully upgraded.")
+	log(ctx).Info("Repository has been successfully upgraded.")
 
 	return nil
 }
