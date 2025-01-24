@@ -12,6 +12,11 @@ var (
 	defaultCompressionPolicy = CompressionPolicy{
 		CompressorName: "none",
 	}
+	defaultMetadataCompressionPolicy = MetadataCompressionPolicy{
+		CompressorName: "zstd-fastest",
+	}
+
+	defaultSplitterPolicy = SplitterPolicy{}
 
 	// defaultErrorHandlingPolicy is the default error handling policy.
 	defaultErrorHandlingPolicy = ErrorHandlingPolicy{
@@ -64,20 +69,21 @@ var (
 		MaxParallelFileReads: nil, // defaults to runtime.NumCPUs()
 
 		// upload large files in chunks of 2 GiB
-		ParallelUploadAboveSize: newOptionalInt64(2 << 30), //nolint:gomnd
+		ParallelUploadAboveSize: newOptionalInt64(2 << 30), //nolint:mnd
 	}
 
 	// DefaultPolicy is a default policy returned by policy tree in absence of other policies.
 	DefaultPolicy = &Policy{
-		FilesPolicy:         defaultFilesPolicy,
-		RetentionPolicy:     defaultRetentionPolicy,
-		CompressionPolicy:   defaultCompressionPolicy,
-		ErrorHandlingPolicy: defaultErrorHandlingPolicy,
-		SchedulingPolicy:    defaultSchedulingPolicy,
-		LoggingPolicy:       defaultLoggingPolicy,
-		Actions:             defaultActionsPolicy,
-		OSSnapshotPolicy:    defaultOSSnapshotPolicy,
-		UploadPolicy:        defaultUploadPolicy,
+		FilesPolicy:               defaultFilesPolicy,
+		RetentionPolicy:           defaultRetentionPolicy,
+		CompressionPolicy:         defaultCompressionPolicy,
+		MetadataCompressionPolicy: defaultMetadataCompressionPolicy,
+		ErrorHandlingPolicy:       defaultErrorHandlingPolicy,
+		SchedulingPolicy:          defaultSchedulingPolicy,
+		LoggingPolicy:             defaultLoggingPolicy,
+		Actions:                   defaultActionsPolicy,
+		OSSnapshotPolicy:          defaultOSSnapshotPolicy,
+		UploadPolicy:              defaultUploadPolicy,
 	}
 
 	// DefaultDefinition provides the Definition for the default policy.

@@ -86,7 +86,7 @@ var ErrAlreadyInitialized = format.ErrAlreadyInitialized
 
 // ErrRepositoryUnavailableDueToUpgradeInProgress is returned when repository
 // is undergoing upgrade that requires exclusive access.
-var ErrRepositoryUnavailableDueToUpgradeInProgress = errors.Errorf("repository upgrade in progress")
+var ErrRepositoryUnavailableDueToUpgradeInProgress = errors.New("repository upgrade in progress")
 
 // Open opens a Repository specified in the configuration file.
 func Open(ctx context.Context, configFile, password string, options *Options) (rep Repository, err error) {
@@ -131,7 +131,7 @@ func Open(ctx context.Context, configFile, password string, options *Options) (r
 	return openDirect(ctx, configFile, lc, password, options)
 }
 
-func getContentCacheOrNil(ctx context.Context, opt *content.CachingOptions, password string, mr *metrics.Registry, timeNow func() time.Time) (*cache.PersistentCache, error) {
+func getContentCacheOrNil(ctx context.Context, si *APIServerInfo, opt *content.CachingOptions, password string, mr *metrics.Registry, timeNow func() time.Time) (*cache.PersistentCache, error) {
 	opt = opt.CloneOrDefault()
 
 	cs, err := cache.NewStorageOrNil(ctx, opt.CacheDirectory, opt.ContentCacheSizeBytes, "server-contents")
@@ -143,7 +143,14 @@ func getContentCacheOrNil(ctx context.Context, opt *content.CachingOptions, pass
 	// derive content cache key from the password & HMAC secret
 	saltWithPurpose := append([]byte("content-cache-protection"), opt.HMACSecret...)
 
-	cacheEncryptionKey, err := crypto.DeriveKeyFromPassword(password, saltWithPurpose, crypto.DefaultKeyDerivationAlgorithm)
+	const cacheEncryptionKeySize = 32
+
+	keyAlgo := si.LocalCacheKeyDerivationAlgorithm
+	if keyAlgo == "" {
+		keyAlgo = DefaultServerRepoCacheKeyDerivationAlgorithm
+	}
+
+	cacheEncryptionKey, err := crypto.DeriveKeyFromPassword(password, saltWithPurpose, cacheEncryptionKeySize, keyAlgo)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to derive cache encryption key from password")
 	}
@@ -171,7 +178,7 @@ func openAPIServer(ctx context.Context, si *APIServerInfo, cliOpts ClientOptions
 
 	mr := metrics.NewRegistry()
 
-	contentCache, err := getContentCacheOrNil(ctx, cachingOptions, password, mr, options.TimeNowFunc)
+	contentCache, err := getContentCacheOrNil(ctx, si, cachingOptions, password, mr, options.TimeNowFunc)
 	if err != nil {
 		return nil, errors.Wrap(err, "error opening content cache")
 	}
@@ -195,17 +202,13 @@ func openAPIServer(ctx context.Context, si *APIServerInfo, cliOpts ClientOptions
 		beforeFlush:      options.BeforeFlush,
 	}
 
-	if si.DisableGRPC {
-		return openRestAPIRepository(ctx, si, password, par)
-	}
-
 	return openGRPCAPIRepository(ctx, si, password, par)
 }
 
 // openDirect opens the repository that directly manipulates blob storage..
 func openDirect(ctx context.Context, configFile string, lc *LocalConfig, password string, options *Options) (rep Repository, err error) {
 	if lc.Storage == nil {
-		return nil, errors.Errorf("storage not set in the configuration file")
+		return nil, errors.New("storage not set in the configuration file")
 	}
 
 	st, err := blob.NewStorage(ctx, *lc.Storage, false)
@@ -294,7 +297,6 @@ func openWithConfig(ctx context.Context, st blob.Storage, cliOpts ClientOptions,
 	}
 
 	_, err = retry.WithExponentialBackoffMaxRetries(ctx, -1, "wait for upgrade", func() (interface{}, error) {
-		//nolint:govet
 		uli, err := fmgr.UpgradeLockIntent(ctx)
 		if err != nil {
 			//nolint:wrapcheck

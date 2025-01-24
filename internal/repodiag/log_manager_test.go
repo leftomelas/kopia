@@ -1,6 +1,7 @@
 package repodiag_test
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"strings"
@@ -22,7 +23,7 @@ func TestLogManager_Enabled(t *testing.T) {
 
 	lm.Enable()
 	l := lm.NewLogger()
-	l.Infof("hello")
+	l.Info("hello")
 
 	require.Empty(t, d)
 	l.Sync()
@@ -49,11 +50,11 @@ func TestLogManager_AutoFlush(t *testing.T) {
 
 	// flush happens after 4 << 20 bytes (4MB) after compression,
 	// write ~10MB of base16 data which compresses to ~5MB and writes 1 blob
-	for i := 0; i < 5000; i++ {
+	for range 5000 {
 		var b [1024]byte
 
 		rand.Read(b[:])
-		l.Infof(hex.EncodeToString(b[:]))
+		l.Info(hex.EncodeToString(b[:]))
 	}
 
 	w.Wait(ctx)
@@ -74,7 +75,7 @@ func TestLogManager_NotEnabled(t *testing.T) {
 	lm := repodiag.NewLogManager(ctx, w)
 
 	l := lm.NewLogger()
-	l.Infof("hello")
+	l.Info("hello")
 
 	require.Empty(t, d)
 	l.Sync()
@@ -84,12 +85,36 @@ func TestLogManager_NotEnabled(t *testing.T) {
 	require.Empty(t, d)
 }
 
+func TestLogManager_CancelledContext(t *testing.T) {
+	d := blobtesting.DataMap{}
+	st := blobtesting.NewMapStorage(d, nil, nil)
+	w := repodiag.NewWriter(st, newStaticCrypter(t))
+	ctx := testlogging.Context(t)
+	cctx, cancel := context.WithCancel(ctx)
+	lm := repodiag.NewLogManager(cctx, w)
+
+	// cancel context, logs should still be written
+	cancel()
+
+	lm.Enable()
+	l := lm.NewLogger()
+	l.Info("hello")
+
+	require.Empty(t, d)
+
+	l.Sync()
+	w.Wait(ctx)
+
+	// make sure log messages are written
+	require.Len(t, d, 1)
+}
+
 func TestLogManager_Null(t *testing.T) {
 	var lm *repodiag.LogManager
 
 	lm.Enable()
 
 	l := lm.NewLogger()
-	l.Infof("hello")
+	l.Info("hello")
 	l.Sync()
 }

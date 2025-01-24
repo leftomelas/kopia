@@ -68,8 +68,8 @@ func (gdrive *gdriveStorage) GetCapacity(ctx context.Context) (blob.Capacity, er
 	}
 
 	return blob.Capacity{
-		SizeB: uint64(q.Limit),
-		FreeB: uint64(q.Limit) - uint64(q.Usage),
+		SizeB: uint64(q.Limit),                   //nolint:gosec
+		FreeB: uint64(q.Limit) - uint64(q.Usage), //nolint:gosec
 	}, nil
 }
 
@@ -384,7 +384,7 @@ func (gdrive *gdriveStorage) getFileByBlobID(ctx context.Context, blobID blob.ID
 		IncludeItemsFromAllDrives(true).
 		Q(fmt.Sprintf("'%s' in parents and name = '%s' and mimeType = '%s' and trashed = false", gdrive.folderID, toFileName(blobID), blobMimeType)).
 		Fields(fields).
-		PageSize(2). //nolint:gomnd
+		PageSize(2). //nolint:mnd
 		Context(ctx).
 		Do()
 
