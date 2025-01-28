@@ -30,7 +30,6 @@ func (c *commandRepositoryRepair) setup(svc advancedAppServices, parent commandP
 		cc := cmd.Command(prov.Name, "Repair repository in "+prov.Description)
 		f.Setup(svc, cc)
 		cc.Action(func(kpc *kingpin.ParseContext) error {
-			//nolint:wrapcheck
 			return svc.runAppWithContext(kpc.SelectedCommand, func(ctx context.Context) error {
 				st, err := f.Connect(ctx, false, 0)
 				if err != nil {
@@ -56,13 +55,13 @@ func packBlockPrefixes() []string {
 func (c *commandRepositoryRepair) runRepairCommandWithStorage(ctx context.Context, st blob.Storage) error {
 	switch c.repairCommandRecoverFormatBlob {
 	case "auto":
-		log(ctx).Infof("looking for format blob...")
+		log(ctx).Info("looking for format blob...")
 
 		var tmp gather.WriteBuffer
 		defer tmp.Close()
 
 		if err := st.GetBlob(ctx, format.KopiaRepositoryBlobID, 0, -1, &tmp); err == nil {
-			log(ctx).Infof("format blob already exists, not recovering, pass --recover-format=yes")
+			log(ctx).Info("format blob already exists, not recovering, pass --recover-format=yes")
 			return nil
 		}
 

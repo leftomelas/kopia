@@ -465,7 +465,7 @@ func (m *ManagerV0) getBlobsToCompact(indexBlobs []Metadata, opt CompactOptions,
 
 	if len(nonCompactedBlobs) < opt.MaxSmallBlobs {
 		// current count is below min allowed - nothing to do
-		m.log.Debugf("no small contents to Compact")
+		m.log.Debug("no small contents to Compact")
 		return nil
 	}
 
@@ -540,9 +540,9 @@ func (m *ManagerV0) dropContentsFromBuilder(bld index.Builder, opt CompactOption
 		m.log.Debugf("drop-content-deleted-before %v", opt.DropDeletedBefore)
 
 		for _, i := range bld {
-			if i.GetDeleted() && i.Timestamp().Before(opt.DropDeletedBefore) {
-				m.log.Debugf("drop-from-index-old-deleted %v %v", i.GetContentID(), i.Timestamp())
-				delete(bld, i.GetContentID())
+			if i.Deleted && i.Timestamp().Before(opt.DropDeletedBefore) {
+				m.log.Debugf("drop-from-index-old-deleted %v %v", i.ContentID, i.Timestamp())
+				delete(bld, i.ContentID)
 			}
 		}
 
@@ -550,7 +550,7 @@ func (m *ManagerV0) dropContentsFromBuilder(bld index.Builder, opt CompactOption
 	}
 }
 
-func addIndexBlobsToBuilder(ctx context.Context, enc *EncryptionManager, bld index.Builder, indexBlobID blob.ID) error {
+func addIndexBlobsToBuilder(ctx context.Context, enc *EncryptionManager, bld index.BuilderCreator, indexBlobID blob.ID) error {
 	var data gather.WriteBuffer
 	defer data.Close()
 
@@ -564,8 +564,8 @@ func addIndexBlobsToBuilder(ctx context.Context, enc *EncryptionManager, bld ind
 		return errors.Wrapf(err, "unable to open index blob %q", indexBlobID)
 	}
 
-	_ = ndx.Iterate(index.AllIDs, func(i index.InfoReader) error {
-		bld.Add(index.ToInfoStruct(i))
+	_ = ndx.Iterate(index.AllIDs, func(i index.Info) error {
+		bld.Add(i)
 		return nil
 	})
 

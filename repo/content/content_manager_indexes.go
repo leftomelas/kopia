@@ -18,7 +18,7 @@ func (sm *SharedManager) Refresh(ctx context.Context) error {
 	sm.indexesLock.Lock()
 	defer sm.indexesLock.Unlock()
 
-	sm.log.Debugf("Refresh started")
+	sm.log.Debug("Refresh started")
 
 	ibm, err := sm.indexBlobManager(ctx)
 	if err != nil {
@@ -77,8 +77,8 @@ func ParseIndexBlob(blobID blob.ID, encrypted gather.Bytes, crypter blobcrypto.C
 
 	var results []Info
 
-	err = ndx.Iterate(index.AllIDs, func(i index.InfoReader) error {
-		results = append(results, index.ToInfoStruct(i))
+	err = ndx.Iterate(index.AllIDs, func(i index.Info) error {
+		results = append(results, i)
 		return nil
 	})
 

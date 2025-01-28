@@ -100,7 +100,7 @@ func NewFormattingOptionsProvider(f0 *ContentFormat, formatBytes []byte) (Provid
 	// apply default
 	if f.MaxPackSize == 0 {
 		// legacy only, apply default
-		f.MaxPackSize = 20 << 20 //nolint:gomnd
+		f.MaxPackSize = 20 << 20 //nolint:mnd
 	}
 
 	h, err := hashing.CreateHashFunc(f)
@@ -114,7 +114,7 @@ func NewFormattingOptionsProvider(f0 *ContentFormat, formatBytes []byte) (Provid
 	}
 
 	if f.GetECCAlgorithm() != "" && f.GetECCOverheadPercent() > 0 {
-		eccEncryptor, err := ecc.CreateEncryptor(f) //nolint:govet
+		eccEncryptor, err := ecc.CreateEncryptor(f)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to create ECC")
 		}
